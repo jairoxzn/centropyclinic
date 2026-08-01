@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { path: '/specialties', label: 'Especialidades', icon: Stethoscope, roles: ['ADMIN'] },
   { path: '/offices', label: 'Consultorios', icon: Building2, roles: ['ADMIN'] },
   { path: '/schedules', label: 'Horarios', icon: Clock, roles: ['ADMIN', 'PSYCHOLOGIST'] },
-  { path: '/package-catalogs', label: 'Catálogo de Paquetes', icon: PackageOpen, roles: ['ADMIN'] },
+  { path: '/package-catalogs', label: 'Catálogo de Paquetes', icon: PackageOpen, roles: ['ADMIN', 'RECEPTIONIST'] },
   { path: '/settings', label: 'Configuración', icon: Settings, roles: ['ADMIN', 'RECEPTIONIST', 'PSYCHOLOGIST'] },
 ];
 

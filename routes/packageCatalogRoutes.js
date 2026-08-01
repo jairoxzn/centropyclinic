@@ -6,7 +6,7 @@ const authorize = require('../middlewares/authorize');
 router.use(authenticate);
 
 router.get('/', controller.list);
-router.post('/', authorize('ADMIN'), controller.create);
-router.put('/:id', authorize('ADMIN'), controller.update);
+router.post('/', authorize('ADMIN', 'RECEPTIONIST'), controller.create);
+router.put('/:id', authorize('ADMIN', 'RECEPTIONIST'), controller.update);
 
 module.exports = router;
