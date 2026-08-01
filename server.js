@@ -57,10 +57,14 @@ app.use(errorHandler);
 
 // ─── Start Server ─────────────────────────────────────
 const PORT = config.port;
-app.listen(PORT, () => {
-  console.log(`\n🧠 PsyClinic Pro API running on port ${PORT}`);
-  console.log(`📍 Environment: ${config.nodeEnv}`);
-  console.log(`🌐 Frontend URL: ${config.frontendUrl}\n`);
-});
+
+// Vercel handles the listening automatically, so we only listen if we are not running on Vercel
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🧠 PsyClinic Pro API running on port ${PORT}`);
+    console.log(`📍 Environment: ${config.nodeEnv}`);
+    console.log(`🌐 Frontend URL: ${config.frontendUrl}\n`);
+  });
+}
 
 module.exports = app;
