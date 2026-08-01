@@ -2,7 +2,6 @@
   "name": "psyclinic-pro",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "PsyClinic Pro - Full Stack Application",
   "main": "server.js",
   "scripts": {
