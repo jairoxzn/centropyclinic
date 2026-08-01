@@ -1,0 +1,22 @@
+{
+  "name": "psyclinic-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PsyClinic Pro - Full Stack Application",
+  "scripts": {
+    "dev": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "migrate": "cd backend && npm run migrate",
+    "migrate:deploy": "cd backend && npm run migrate:deploy",
+    "seed": "cd backend && npm run seed",
+    "generate": "cd backend && npm run generate",
+    "studio": "cd backend && npm run studio"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

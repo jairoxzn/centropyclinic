@@ -1,0 +1,544 @@
+// PsyClinic Pro - Prisma Schema
+// PostgreSQL (Neon) - Normalized, UUID, Soft Delete
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ──────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  RECEPTIONIST
+  PSYCHOLOGIST
+  PATIENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  COHABITING
+}
+
+enum AppointmentStatus {
+  AVAILABLE
+  RESERVED
+  CONFIRMED
+  ATTENDED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  YAPE
+  PLIN
+  TRANSFER
+  CARD
+  ONLINE
+}
+
+enum CashMovementType {
+  INCOME
+  EXPENSE
+}
+
+enum OfficeStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum BlockType {
+  VACATION
+  LICENSE
+  HOLIDAY
+  PERSONAL
+  OTHER
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// ─── USER ───────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(PATIENT)
+  isActive      Boolean   @default(true)
+  refreshToken  String?
+  resetToken    String?
+  resetExpires  DateTime?
+  lastLogin     DateTime?
+  avatar        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  patient       Patient?
+  psychologist  Psychologist?
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// ─── PATIENT ────────────────────────────────────────────
+
+model Patient {
+  id                String       @id @default(uuid())
+  userId            String       @unique
+  dni               String       @unique
+  firstName         String
+  lastName          String
+  birthDate         DateTime
+  gender            Gender
+  phone             String?
+  address           String?
+  maritalStatus     MaritalStatus?
+  occupation        String?
+  emergencyContact  String?
+  emergencyPhone    String?
+  observations      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
+
+  user              User         @relation(fields: [userId], references: [id])
+  appointments      Appointment[]
+  clinicalRecord    ClinicalRecord?
+  patientPackages   PatientPackage[]
+  documents         PatientDocument[]
+
+  @@map("patients")
+}
+
+// ─── PSYCHOLOGIST ───────────────────────────────────────
+
+model Psychologist {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  firstName       String
+  lastName        String
+  licenseNumber   String    @unique
+  phone           String?
+  photo           String?
+  cv              String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user            User      @relation(fields: [userId], references: [id])
+  specialties     PsychologistSpecialty[]
+  schedules       Schedule[]
+  scheduleBlocks  ScheduleBlock[]
+  appointments    Appointment[]
+  officeId        String?
+  office          Office?   @relation(fields: [officeId], references: [id])
+
+  @@map("psychologists")
+}
+
+// ─── SPECIALTY ──────────────────────────────────────────
+
+model Specialty {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  psychologists PsychologistSpecialty[]
+  appointments  Appointment[]
+
+  @@map("specialties")
+}
+
+// ─── PSYCHOLOGIST ↔ SPECIALTY (N:N) ─────────────────────
+
+model PsychologistSpecialty {
+  id              String       @id @default(uuid())
+  psychologistId  String
+  specialtyId     String
+  createdAt       DateTime     @default(now())
+
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id])
+  specialty       Specialty    @relation(fields: [specialtyId], references: [id])
+
+  @@unique([psychologistId, specialtyId])
+  @@map("psychologist_specialties")
+}
+
+// ─── OFFICE ─────────────────────────────────────────────
+
+model Office {
+  id          String       @id @default(uuid())
+  number      String       @unique
+  floor       Int          @default(1)
+  status      OfficeStatus @default(ACTIVE)
+  observations String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  psychologists Psychologist[]
+
+  @@map("offices")
+}
+
+// ─── SCHEDULE ───────────────────────────────────────────
+
+model Schedule {
+  id              String       @id @default(uuid())
+  psychologistId  String
+  dayOfWeek       DayOfWeek
+  startTime       String       // "08:00"
+  endTime         String       // "17:00"
+  slotDuration    Int          @default(60) // minutes
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id])
+
+  @@unique([psychologistId, dayOfWeek])
+  @@map("schedules")
+}
+
+// ─── SCHEDULE BLOCK ─────────────────────────────────────
+
+model ScheduleBlock {
+  id              String       @id @default(uuid())
+  psychologistId  String
+  blockType       BlockType
+  startDate       DateTime
+  endDate         DateTime
+  reason          String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  psychologist    Psychologist @relation(fields: [psychologistId], references: [id])
+
+  @@map("schedule_blocks")
+}
+
+// ─── HOLIDAY ────────────────────────────────────────────
+
+model Holiday {
+  id          String   @id @default(uuid())
+  name        String
+  date        DateTime
+  isRecurring Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("holidays")
+}
+
+// ─── APPOINTMENT ────────────────────────────────────────
+
+model Appointment {
+  id              String            @id @default(uuid())
+  patientId       String
+  psychologistId  String
+  specialtyId     String
+  date            DateTime
+  startTime       String
+  endTime         String
+  status          AppointmentStatus @default(RESERVED)
+  cost            Decimal           @default(0) @db.Decimal(10, 2)
+  notes           String?
+  cancellationReason String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  psychologist    Psychologist      @relation(fields: [psychologistId], references: [id])
+  specialty       Specialty         @relation(fields: [specialtyId], references: [id])
+  
+  patientPackageId String?
+  patientPackage  PatientPackage?   @relation(fields: [patientPackageId], references: [id])
+
+  payments        Payment[]
+  clinicalSession ClinicalSession?
+
+  @@map("appointments")
+}
+
+// ─── PAYMENT ────────────────────────────────────────────
+
+model Payment {
+  id              String        @id @default(uuid())
+  appointmentId   String?
+  patientPackageId String?
+  amount          Decimal       @db.Decimal(10, 2)
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  operationNumber String?
+  receipt         String?
+  observations    String?
+  paidAt          DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  appointment     Appointment?   @relation(fields: [appointmentId], references: [id])
+  patientPackage  PatientPackage? @relation(fields: [patientPackageId], references: [id])
+  cashMovement    CashMovement?
+
+  @@map("payments")
+}
+
+// ─── CLINICAL RECORD ────────────────────────────────────
+
+model ClinicalRecord {
+  id                String    @id @default(uuid())
+  patientId         String    @unique
+  consultReason     String?
+  background        String?
+  diagnosis         String?
+  treatment         String?
+  observations      String?
+  consentSigned     Boolean   @default(false)
+  consentFile       String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  patient           Patient   @relation(fields: [patientId], references: [id])
+  sessions          ClinicalSession[]
+  files             ClinicalFile[]
+
+  @@map("clinical_records")
+}
+
+// ─── CLINICAL SESSION ───────────────────────────────────
+
+model ClinicalSession {
+  id                String         @id @default(uuid())
+  clinicalRecordId  String
+  appointmentId     String?        @unique
+  sessionNumber     Int
+  date              DateTime
+  startTime         String?
+  endTime           String?
+  notes             String?
+  evolution         String?
+  objectives        String?
+  nextSession       String?
+  psychologicalScales String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  clinicalRecord    ClinicalRecord @relation(fields: [clinicalRecordId], references: [id])
+  appointment       Appointment?   @relation(fields: [appointmentId], references: [id])
+
+  @@map("clinical_sessions")
+}
+
+// ─── CLINICAL FILE ──────────────────────────────────────
+
+model ClinicalFile {
+  id                String         @id @default(uuid())
+  clinicalRecordId  String
+  fileName          String
+  fileUrl           String
+  fileType          String?
+  createdAt         DateTime       @default(now())
+
+  clinicalRecord    ClinicalRecord @relation(fields: [clinicalRecordId], references: [id])
+
+  @@map("clinical_files")
+}
+
+// ─── PATIENT DOCUMENT ───────────────────────────────────
+
+model PatientDocument {
+  id          String   @id @default(uuid())
+  patientId   String
+  fileName    String
+  fileUrl     String
+  fileType    String?
+  createdAt   DateTime @default(now())
+
+  patient     Patient  @relation(fields: [patientId], references: [id])
+
+  @@map("patient_documents")
+}
+
+// ─── CASH REGISTER ──────────────────────────────────────
+
+model CashRegister {
+  id            String         @id @default(uuid())
+  openedBy      String
+  closedBy      String?
+  openingAmount Decimal        @db.Decimal(10, 2)
+  closingAmount Decimal?       @db.Decimal(10, 2)
+  openedAt      DateTime       @default(now())
+  closedAt      DateTime?
+  observations  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  movements     CashMovement[]
+
+  @@map("cash_registers")
+}
+
+// ─── CASH MOVEMENT ──────────────────────────────────────
+
+model CashMovement {
+  id              String           @id @default(uuid())
+  cashRegisterId  String
+  paymentId       String?          @unique
+  type            CashMovementType
+  amount          Decimal          @db.Decimal(10, 2)
+  description     String
+  createdAt       DateTime         @default(now())
+
+  cashRegister    CashRegister     @relation(fields: [cashRegisterId], references: [id])
+  payment         Payment?         @relation(fields: [paymentId], references: [id])
+
+  @@map("cash_movements")
+}
+
+// ─── NOTIFICATION ───────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String    @default("info")
+  isRead    Boolean   @default(false)
+  link      String?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  table     String
+  recordId  String?
+  oldData   Json?
+  newData   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ─── CLINIC SETTINGS ────────────────────────────────────
+
+model ClinicSettings {
+  id               String   @id @default(uuid())
+  clinicName       String   @default("PsyClinic Pro")
+  primaryColor     String   @default("#0f766e") // default teal-700 equivalent
+  logo             String?
+  email            String?
+  phone            String?
+  whatsapp         String?
+  address          String?
+  website          String?
+  consultationCost Decimal  @default(100) @db.Decimal(10, 2)
+  consultationDuration Int  @default(60)
+  currency         String   @default("PEN")
+  timezone         String   @default("America/Lima")
+  smtpHost         String?
+  smtpPort         Int?
+  smtpUser         String?
+  smtpPass         String?
+  cloudinaryName   String?
+  cloudinaryKey    String?
+  cloudinarySecret String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("clinic_settings")
+}
+
+// ─── PACKAGES ───────────────────────────────────────────
+
+model PackageCatalog {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  totalSessions Int
+  price         Decimal   @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  patientPackages PatientPackage[]
+
+  @@map("package_catalog")
+}
+
+enum PackageStatus {
+  ACTIVE
+  EXHAUSTED
+  CANCELLED
+}
+
+model PatientPackage {
+  id               String         @id @default(uuid())
+  patientId        String
+  packageCatalogId String
+  totalSessions    Int
+  usedSessions     Int            @default(0)
+  price            Decimal        @db.Decimal(10, 2)
+  status           PackageStatus  @default(ACTIVE)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  patient          Patient        @relation(fields: [patientId], references: [id])
+  packageCatalog   PackageCatalog @relation(fields: [packageCatalogId], references: [id])
+  appointments     Appointment[]
+  payments         Payment[]
+
+  @@map("patient_packages")
+}
