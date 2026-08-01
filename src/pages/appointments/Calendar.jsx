@@ -48,6 +48,7 @@ export default function CalendarView() {
           patientName: `${apt.patient.firstName} ${apt.patient.lastName}`,
           psychologistName: `${apt.psychologist.firstName} ${apt.psychologist.lastName}`,
           specialtyName: apt.specialty.name,
+          isPackage: !!apt.patientPackageId,
         }
       }));
       successCallback(formattedEvents);
@@ -78,6 +79,7 @@ export default function CalendarView() {
           <p><strong>Paciente:</strong> ${extendedProps.patientName}</p>
           <p><strong>Psicólogo:</strong> ${extendedProps.psychologistName}</p>
           <p><strong>Especialidad:</strong> ${extendedProps.specialtyName}</p>
+          <p><strong>Tipo:</strong> ${extendedProps.isPackage ? 'Sesión de paquete' : 'Cita regular'}</p>
           <p><strong>Fecha:</strong> ${event.start.toLocaleDateString()}</p>
           <p><strong>Hora:</strong> ${event.start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${event.end ? event.end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</p>
           <p><strong>Estado:</strong> 
@@ -133,6 +135,9 @@ export default function CalendarView() {
       <div className="flex flex-col p-1 text-xs overflow-hidden h-full">
         <span className="font-bold truncate">{eventInfo.event.title}</span>
         <span className="truncate opacity-90">{eventInfo.event.extendedProps.patientName}</span>
+        {eventInfo.event.extendedProps.isPackage && (
+          <span className="mt-0.5 w-max px-1.5 py-0.5 rounded bg-violet-500 text-white text-[10px] font-bold">Paquete</span>
+        )}
       </div>
     );
   };

@@ -177,10 +177,19 @@ class AppointmentService {
     if (['ATTENDED', 'CANCELLED'].includes(appointment.status)) {
       throw new AppError('No se puede cancelar una cita atendida o ya cancelada', 400);
     }
-    return appointmentRepository.update(id, {
+    const updated = await appointmentRepository.update(id, {
       status: 'CANCELLED',
       cancellationReason: reason,
     });
+    // Free the package session so it can be scheduled again
+    if (appointment.patientPackageId) {
+      const prisma = require('../config/database');
+      await prisma.patientPackage.update({
+        where: { id: appointment.patientPackageId },
+        data: { usedSessions: { decrement: 1 } },
+      });
+    }
+    return updated;
   }
 
   async reschedule(id, data) {

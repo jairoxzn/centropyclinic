@@ -1,19 +1,25 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, UserRound, Phone, MapPin, Briefcase, Heart, PhoneForwarded, FileText } from 'lucide-react';
+import { ArrowLeft, UserRound, Phone, MapPin, Briefcase, Heart, PhoneForwarded, FileText, CalendarPlus, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import Button from '../../components/ui/Button';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function PatientDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('profile');
   const [packages, setPackages] = useState([]);
   const [packageCatalogs, setPackageCatalogs] = useState([]);
   const [isAssigning, setIsAssigning] = useState(false);
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
+  const [schedulingPkg, setSchedulingPkg] = useState(null);
+  const [psychologists, setPsychologists] = useState([]);
+  const [scheduleForm, setScheduleForm] = useState({ psychologistId: '', specialtyId: '', duration: 60, sessions: [] });
+  const [isScheduling, setIsScheduling] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ['patient', id],
@@ -71,6 +77,81 @@ export default function PatientDetail() {
       toast.error('Error al asignar paquete');
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const addMinutes = (time, minutes) => {
+    const [h, m] = time.split(':').map(Number);
+    const total = h * 60 + m + minutes;
+    return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  };
+
+  const openSchedule = async (pkg) => {
+    const remaining = pkg.totalSessions - pkg.usedSessions;
+    setScheduleForm({
+      psychologistId: '',
+      specialtyId: '',
+      duration: 60,
+      sessions: Array.from({ length: remaining }, () => ({ date: '', time: '' })),
+    });
+    setSchedulingPkg(pkg);
+    try {
+      const res = await api.get('/psychologists');
+      setPsychologists(res.data.filter(p => p.isActive));
+    } catch (error) {
+      toast.error('Error al cargar psicólogos');
+    }
+  };
+
+  const onPsychologistChange = (psychologistId) => {
+    const psy = psychologists.find(p => p.id === psychologistId);
+    const psySpecialties = psy ? psy.specialties.map(ps => ps.specialty).filter(s => s.isActive) : [];
+    setScheduleForm(prev => ({
+      ...prev,
+      psychologistId,
+      specialtyId: psySpecialties.length ? psySpecialties[0].id : '',
+    }));
+  };
+
+  const updateSession = (index, field, value) => {
+    setScheduleForm(prev => {
+      const sessions = prev.sessions.map((s, i) => (i === index ? { ...s, [field]: value } : s));
+      return { ...prev, sessions };
+    });
+  };
+
+  const handleScheduleSessions = async (e) => {
+    e.preventDefault();
+    const filled = scheduleForm.sessions.filter(s => s.date && s.time);
+    if (filled.length === 0) {
+      toast.error('Complete al menos una fecha y hora de sesión');
+      return;
+    }
+    if (!scheduleForm.psychologistId) {
+      toast.error('Seleccione un psicólogo');
+      return;
+    }
+    if (!scheduleForm.specialtyId) {
+      toast.error('El psicólogo seleccionado no tiene especialidades asignadas');
+      return;
+    }
+    setIsScheduling(true);
+    try {
+      const sessions = filled.map(s => ({
+        psychologistId: scheduleForm.psychologistId,
+        specialtyId: scheduleForm.specialtyId,
+        date: s.date,
+        startTime: s.time,
+        endTime: addMinutes(s.time, scheduleForm.duration),
+      }));
+      await api.post(`/patient-packages/${schedulingPkg.id}/schedule-sessions`, { sessions });
+      toast.success(`${filled.length} sesión(es) programada(s) en el calendario`);
+      setSchedulingPkg(null);
+      fetchPackages();
+    } catch (error) {
+      toast.error(error.message || 'Error al programar sesiones');
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -211,19 +292,112 @@ export default function PatientDetail() {
                 </form>
               </div>
 
+              {schedulingPkg && (
+                <div className="bg-white dark:bg-surface-900 p-6 rounded-2xl border border-primary-200 dark:border-primary-800 shadow-sm animate-fade-in">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-surface-900 dark:text-white flex items-center gap-2">
+                      <CalendarPlus size={20} className="text-primary-500" />
+                      Programar Sesiones: {schedulingPkg.packageCatalog.name}
+                    </h3>
+                    <Button variant="ghost" size="icon" onClick={() => setSchedulingPkg(null)}>
+                      <X size={18} />
+                    </Button>
+                  </div>
+                  <form onSubmit={handleScheduleSessions} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">Psicólogo</label>
+                        <select
+                          value={scheduleForm.psychologistId}
+                          onChange={e => onPsychologistChange(e.target.value)}
+                          className="w-full px-4 py-2.5 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-xl text-surface-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                        >
+                          <option value="">Selecciona un psicólogo...</option>
+                          {psychologists.map(p => (
+                            <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">Especialidad</label>
+                        <select
+                          value={scheduleForm.specialtyId}
+                          onChange={e => setScheduleForm(prev => ({ ...prev, specialtyId: e.target.value }))}
+                          className="w-full px-4 py-2.5 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-xl text-surface-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                        >
+                          <option value="">Selecciona una especialidad...</option>
+                          {(() => {
+                            const psy = psychologists.find(p => p.id === scheduleForm.psychologistId);
+                            const opts = psy ? psy.specialties.map(ps => ps.specialty).filter(s => s.isActive) : [];
+                            return opts.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-2">Duración (minutos)</label>
+                        <input
+                          type="number"
+                          min="15"
+                          step="5"
+                          value={scheduleForm.duration}
+                          onChange={e => setScheduleForm(prev => ({ ...prev, duration: Number(e.target.value) || 60 }))}
+                          className="w-full px-4 py-2.5 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-xl text-surface-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {scheduleForm.sessions.map((s, i) => (
+                        <div key={i} className="flex flex-col sm:flex-row gap-3 items-end bg-surface-50 dark:bg-surface-950/50 border border-surface-100 dark:border-surface-800 rounded-xl p-3">
+                          <span className="text-sm font-semibold text-surface-700 dark:text-surface-300 w-24 shrink-0">
+                            Sesión {i + 1}
+                          </span>
+                          <input
+                            type="date"
+                            value={s.date}
+                            onChange={e => updateSession(i, 'date', e.target.value)}
+                            className="flex-1 px-4 py-2.5 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl text-surface-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                          />
+                          <input
+                            type="time"
+                            value={s.time}
+                            onChange={e => updateSession(i, 'time', e.target.value)}
+                            className="flex-1 px-4 py-2.5 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-800 rounded-xl text-surface-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button type="submit" disabled={isScheduling}>
+                        {isScheduling ? 'Programando...' : 'Guardar Sesiones'}
+                      </Button>
+                      <Button type="button" variant="ghost" onClick={() => setSchedulingPkg(null)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               <div className="bg-white dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-sm overflow-hidden">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300">
                     <tr>
                       <th className="p-4 font-semibold">Paquete</th>
-                      <th className="p-4 font-semibold text-center">Sesiones Usadas</th>
+                      <th className="p-4 font-semibold text-center">Sesiones Programadas</th>
                       <th className="p-4 font-semibold">Progreso</th>
                       <th className="p-4 font-semibold">Estado</th>
+                      <th className="p-4 font-semibold text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {packages.map(pkg => {
                       const progress = Math.round((pkg.usedSessions / pkg.totalSessions) * 100);
+                      const remaining = pkg.totalSessions - pkg.usedSessions;
+                      const canSchedule = ['ADMIN', 'RECEPTIONIST'].includes(user?.role) && pkg.status === 'ACTIVE' && remaining > 0;
                       return (
                         <tr key={pkg.id} className="border-b border-surface-100 dark:border-surface-800 hover:bg-surface-50 dark:hover:bg-surface-800/30">
                           <td className="p-4 font-medium text-surface-900 dark:text-white">
@@ -243,11 +417,20 @@ export default function PatientDetail() {
                               {pkg.status}
                             </span>
                           </td>
+                          <td className="p-4 text-center">
+                            {canSchedule ? (
+                              <Button size="sm" variant="outline" onClick={() => openSchedule(pkg)}>
+                                <CalendarPlus size={16} className="mr-1.5" /> Programar
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-surface-400">{remaining} restantes</span>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
                     {packages.length === 0 && (
-                      <tr><td colSpan="4" className="p-6 text-center text-surface-500">El paciente no tiene paquetes comprados.</td></tr>
+                      <tr><td colSpan="5" className="p-6 text-center text-surface-500">El paciente no tiene paquetes comprados.</td></tr>
                     )}
                   </tbody>
                 </table>
