@@ -7,9 +7,9 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const routes = require('./src/routes');
-const errorHandler = require('./src/middlewares/errorHandler');
-const config = require('./src/config');
+const routes = require('./routes');
+const errorHandler = require('./middlewares/errorHandler');
+const config = require('./config');
 
 const app = express();
 
@@ -42,7 +42,7 @@ if (config.nodeEnv === 'development') {
 }
 
 // ─── Static Files ─────────────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, 'src', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Routes ───────────────────────────────────────────
 app.use('/api', routes);
