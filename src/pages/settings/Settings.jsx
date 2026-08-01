@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
-import { User, Shield, Palette, Users, Save, Check, PackageOpen, Plus, Trash2 } from 'lucide-react';
+import { User, Shield, Palette, Users, Save, Check, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -25,14 +25,6 @@ export default function Settings() {
   const [newStaffRole, setNewStaffRole] = useState('RECEPTIONIST');
   const [creatingStaff, setCreatingStaff] = useState(false);
 
-  // Package Catalog State
-  const [packageCatalogs, setPackageCatalogs] = useState([]);
-  const [loadingPackages, setLoadingPackages] = useState(false);
-  const [newPackageName, setNewPackageName] = useState('');
-  const [newPackageSessions, setNewPackageSessions] = useState(4);
-  const [newPackagePrice, setNewPackagePrice] = useState(0);
-  const [creatingPackage, setCreatingPackage] = useState(false);
-
   useEffect(() => {
     if (settings) {
       setClinicName(settings.clinicName);
@@ -44,43 +36,7 @@ export default function Settings() {
     if (activeTab === 'staff' && user?.role === 'ADMIN') {
       fetchStaff();
     }
-    if (activeTab === 'packages' && user?.role === 'ADMIN') {
-      fetchPackages();
-    }
   }, [activeTab, user?.role]);
-
-  const fetchPackages = async () => {
-    setLoadingPackages(true);
-    try {
-      const res = await api.get('/package-catalogs');
-      setPackageCatalogs(res.data);
-    } catch (error) {
-      toast.error('Error al cargar paquetes');
-    } finally {
-      setLoadingPackages(false);
-    }
-  };
-
-  const handleCreatePackage = async (e) => {
-    e.preventDefault();
-    setCreatingPackage(true);
-    try {
-      await api.post('/package-catalogs', {
-        name: newPackageName,
-        totalSessions: newPackageSessions,
-        price: newPackagePrice
-      });
-      toast.success('Paquete creado exitosamente');
-      setNewPackageName('');
-      setNewPackageSessions(4);
-      setNewPackagePrice(0);
-      fetchPackages();
-    } catch (error) {
-      toast.error('Error al crear paquete');
-    } finally {
-      setCreatingPackage(false);
-    }
-  };
 
   const fetchStaff = async () => {
     setLoadingStaff(true);
@@ -129,7 +85,6 @@ export default function Settings() {
     { id: 'profile', label: 'Mi Perfil', icon: User },
     ...(user?.role === 'ADMIN' ? [
       { id: 'appearance', label: 'Apariencia', icon: Palette },
-      { id: 'packages', label: 'Catálogo de Paquetes', icon: PackageOpen },
       { id: 'staff', label: 'Cuentas de Personal', icon: Users }
     ] : [])
   ];
@@ -312,75 +267,6 @@ export default function Settings() {
             </div>
           )}
 
-          {/* PACKAGES TAB */}
-          {activeTab === 'packages' && user?.role === 'ADMIN' && (
-            <div className="space-y-8 animate-fade-in">
-              <div>
-                <h2 className="text-xl font-bold text-surface-900 dark:text-white mb-2">Catálogo de Paquetes</h2>
-                <p className="text-surface-500 text-sm mb-6 border-b border-surface-100 dark:border-surface-800 pb-4">Define los tipos de paquetes (ej. Paquete de 4 sesiones) que luego los pacientes podrán adquirir. Las citas podrán descontarse de estos paquetes.</p>
-              </div>
-
-              {/* Crear paquete */}
-              <div className="bg-surface-50 dark:bg-surface-950/50 p-6 rounded-2xl border border-surface-200 dark:border-surface-800">
-                <h3 className="font-semibold text-surface-800 dark:text-surface-200 mb-4 flex items-center gap-2"><Plus size={18}/> Nuevo Paquete</h3>
-                <form onSubmit={handleCreatePackage} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1">Nombre</label>
-                    <input required type="text" placeholder="Ej: Paquete 4 Sesiones" value={newPackageName} onChange={e => setNewPackageName(e.target.value)} className="w-full px-3 py-2.5 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-sm" />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1">Sesiones en Total</label>
-                    <input required type="number" min="1" value={newPackageSessions} onChange={e => setNewPackageSessions(e.target.value)} className="w-full px-3 py-2.5 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-sm" />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1">Precio Total (S/)</label>
-                    <input required type="number" min="0" step="0.01" value={newPackagePrice} onChange={e => setNewPackagePrice(e.target.value)} className="w-full px-3 py-2.5 bg-white dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-lg text-sm" />
-                  </div>
-                  <div className="md:col-span-1">
-                    <button type="submit" disabled={creatingPackage} className="w-full py-2.5 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors">
-                      {creatingPackage ? 'Guardando...' : 'Añadir al Catálogo'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Lista */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300">
-                    <tr>
-                      <th className="p-3 font-semibold rounded-tl-lg">Nombre</th>
-                      <th className="p-3 font-semibold">Sesiones</th>
-                      <th className="p-3 font-semibold">Precio Total</th>
-                      <th className="p-3 font-semibold">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingPackages ? (
-                      <tr><td colSpan="4" className="p-4 text-center text-surface-500">Cargando...</td></tr>
-                    ) : (
-                      packageCatalogs.map(pkg => (
-                        <tr key={pkg.id} className="border-b border-surface-100 dark:border-surface-800 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800/30">
-                          <td className="p-3 font-medium text-surface-900 dark:text-white">{pkg.name}</td>
-                          <td className="p-3 text-surface-600 dark:text-surface-400">{pkg.totalSessions}</td>
-                          <td className="p-3 font-mono text-primary-600 dark:text-primary-400 font-bold">S/ {parseFloat(pkg.price).toFixed(2)}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-1 text-xs rounded-full font-bold flex items-center w-max gap-1 ${pkg.isActive ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                              {pkg.isActive ? 'Activo' : 'Inactivo'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                    {packageCatalogs.length === 0 && !loadingPackages && (
-                      <tr><td colSpan="4" className="p-4 text-center text-surface-500">No hay paquetes en el catálogo.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-            </div>
-          )}
         </div>
       </div>
     </div>

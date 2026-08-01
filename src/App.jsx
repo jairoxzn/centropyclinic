@@ -24,6 +24,7 @@ import SpecialtyList from './pages/specialties/SpecialtyList';
 import OfficeList from './pages/offices/OfficeList';
 import ScheduleConfig from './pages/schedules/ScheduleConfig';
 import Settings from './pages/settings/Settings';
+import PackageCatalog from './pages/packages/PackageCatalog';
 
 import CalendarView from './pages/appointments/Calendar';
 import AppointmentForm from './pages/appointments/AppointmentForm';
@@ -89,6 +90,7 @@ function App() {
           <Route path="specialties" element={<SpecialtyList />} />
           <Route path="offices" element={<OfficeList />} />
           <Route path="schedules" element={<ScheduleConfig />} />
+          <Route path="package-catalogs" element={<PackageCatalog />} />
 
           {/* Configuración */}
           <Route path="settings" element={<Settings />} />

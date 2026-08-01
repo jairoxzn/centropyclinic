@@ -4,7 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { 
   LayoutDashboard, Users, UserRound, Calendar, 
   CreditCard, FileText, Settings, LogOut, Menu, X, Sun, Moon,
-  Stethoscope, Building2, Clock
+  Stethoscope, Building2, Clock, PackageOpen
 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { path: '/specialties', label: 'Especialidades', icon: Stethoscope, roles: ['ADMIN'] },
   { path: '/offices', label: 'Consultorios', icon: Building2, roles: ['ADMIN'] },
   { path: '/schedules', label: 'Horarios', icon: Clock, roles: ['ADMIN', 'PSYCHOLOGIST'] },
+  { path: '/package-catalogs', label: 'Catálogo de Paquetes', icon: PackageOpen, roles: ['ADMIN'] },
   { path: '/settings', label: 'Configuración', icon: Settings, roles: ['ADMIN', 'RECEPTIONIST', 'PSYCHOLOGIST'] },
 ];
 
