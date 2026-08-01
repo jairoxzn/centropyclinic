@@ -36,7 +36,9 @@ const errorHandler = (err, req, res, next) => {
   console.error('Unhandled Error:', err);
   return res.status(500).json({
     success: false,
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
+    message: err.message || 'Error interno del servidor',
+    stack: err.stack,
+    details: err
   });
 };
 
